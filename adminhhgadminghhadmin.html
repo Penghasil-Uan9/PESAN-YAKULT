@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>WMB SHOP — Admin</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">ADM</div>
+      <div>
+        <h1>Admin WMB SHOP</h1>
+        <small>Panel Realtime</small>
+      </div>
+    </div>
+    <div id="clockAdmin" class="clock">--:--:--</div>
+  </header>
+
+  <main class="container admin-container">
+    <section class="card" style="flex:1">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <h2>Transaksi (Realtime)</h2>
+        <div style="display:flex;gap:8px">
+          <button id="btnResetAll" class="btn ghost">Reset Data</button>
+          <button id="btnDownloadAll" class="btn primary">Download Semua Struk</button>
+        </div>
+      </div>
+
+      <div id="txList" class="tx-list" style="margin-top:12px"></div>
+    </section>
+
+    <aside style="width:360px">
+      <div class="card">
+        <h3>Laporan & Pengurangan</h3>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <div style="flex:1"><small>Total Pendapatan</small><div id="totalPendapatan" class="amount">Rp0</div></div>
+          <div style="flex:1"><small>Total Kerugian</small><div id="totalKerugian" class="amount">Rp0</div></div>
+        </div>
+
+        <div style="margin-top:12px">
+          <input id="deductAmount" type="number" placeholder="Jumlah pengurangan" style="width:100%;padding:8px;border-radius:8px;border:1px solid #eee">
+          <input id="deductReason" type="text" placeholder="Alasan" style="width:100%;padding:8px;border-radius:8px;border:1px solid #eee;margin-top:8px">
+          <button id="btnDeduct" class="btn accent" style="width:100%;margin-top:8px">Kurangi</button>
+        </div>
+
+        <div style="margin-top:12px">
+          <h4>Riwayat Pengurangan</h4>
+          <div id="deductList" class="hist-list"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <h4>Riwayat Struk (Pembayaran Lunas)</h4>
+        <div id="orderHistory" class="hist-list"><div class="muted">Belum ada riwayat</div></div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Modal for cash input (nice UI) -->
+  <div id="cashModal" class="modal hidden">
+    <div class="modal-content card">
+      <h3>Input Tunai</h3>
+      <div id="cashModalInfo" class="small muted"></div>
+      <input id="cashInput" type="number" placeholder="Masukkan jumlah uang diterima" style="width:100%;padding:10px;border-radius:8px;border:1px solid #eee;margin-top:8px">
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button id="cashCancel" class="btn ghost">Batal</button>
+        <button id="cashConfirm" class="btn primary">Konfirmasi Tunai</button>
+      </div>
+      <div id="cashResult" style="margin-top:12px"></div>
+    </div>
+  </div>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <script src="firebase.js"></script>
+  <script src="admin.js"></script>
+</body>
+</html>

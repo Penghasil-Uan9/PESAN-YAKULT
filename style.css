@@ -1,0 +1,101 @@
+:root{
+  --bg:#f7f6f3;
+  --card:#ffffff;
+  --accent:#7b5e57; /* brown */
+  --primary:#2b6b54; /* green */
+  --muted:#6b6b6b;
+  --success:#16a34a;
+  --danger:#dc2626;
+  --warn:#f59e0b;
+  --radius:12px;
+  --shadow: 0 8px 24px rgba(0,0,0,0.06);
+  font-family: "Inter", "Poppins", system-ui, -apple-system, sans-serif;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#111}
+.topbar{display:flex;justify-content:space-between;align-items:center;padding:14px 20px}
+.brand{display:flex;gap:12px;align-items:center}
+.logo{width:52px;height:52px;border-radius:10px;background:linear-gradient(135deg,var(--accent),#b58870);display:flex;align-items:center;justify-content:center;color:white;font-weight:800}
+.clock{background:var(--card);padding:6px 10px;border-radius:10px;box-shadow:var(--shadow);font-family:monospace}
+
+.container{max-width:1200px;margin:18px auto;display:grid;grid-template-columns:1fr 380px;gap:18px;padding:0 18px}
+.card{background:var(--card);padding:14px;border-radius:var(--radius);box-shadow:var(--shadow)}
+.product-grid{display:flex;gap:14px;flex-wrap:wrap}
+.product{width:220px;background:linear-gradient(180deg,#fff,#fbfbfb);padding:12px;border-radius:12px;text-align:center;box-shadow:0 8px 20px rgba(0,0,0,0.04)}
+.product img{width:150px;height:150px;object-fit:cover;border-radius:12px}
+.product h3{margin:8px 0 6px}
+.small{font-size:13px;color:var(--muted)}
+.counter{display:flex;justify-content:center;align-items:center;gap:8px;margin-top:10px}
+.btn{padding:8px 12px;border-radius:10px;border:none;cursor:pointer;font-weight:700}
+.btn.ghost{background:#fafafa;border:1px solid #efefef}
+.btn.primary{background:var(--primary);color:white}
+.btn.accent{background:var(--accent);color:white}
+.qty-box{min-width:36px;text-align:center;font-weight:800}
+
+/* cart */
+.cart-list{max-height:300px;overflow:auto;padding:6px}
+.cart-item{display:flex;justify-content:space-between;align-items:center;padding:10px;border-radius:8px;border:1px solid #f1f1f1;margin-bottom:8px}
+.totals{display:flex;justify-content:space-between;align-items:center;margin-top:12px}
+.amount{font-weight:900;font-size:18px}
+.actions{display:flex;gap:8px;margin-top:12px}
+
+/* qr */
+.qr-box{margin-top:12px;border-radius:10px;padding:12px;border:1px solid #f2f2f2;background:linear-gradient(180deg,#fff,#fcfcfb);text-align:center}
+.qr-image img{width:220px;height:220px;border-radius:8px;object-fit:contain}
+.hidden{display:none}
+
+/* admin */
+.tx-list{max-height:560px;overflow:auto}
+.tx-row{display:flex;justify-content:space-between;align-items:center;padding:10px;border-radius:10px;border:1px solid #f1f1f1;margin-bottom:8px}
+.badge{padding:6px 10px;border-radius:8px;font-weight:800}
+.badge-pending{background:#fff7ed;color:#92400e}
+.badge-paid{background:#ecfdf5;color:#166534}
+.badge-cancel{background:#fff1f2;color:#9f1239}
+.hist-list{max-height:220px;overflow:auto;padding-top:6px}
+
+/* modal */
+.modal { position: fixed; inset: 0; display:flex; align-items:center; justify-content:center; background: rgba(0,0,0,0.35); z-index: 9999; }
+.modal .modal-content { width: 420px; max-width:95%; }
+.modal.hidden { display:none; }
+
+/* result boxes for cash */
+.cash-box { padding:10px;border-radius:8px;font-weight:800 }
+.cash-box.success { background: #ecfdf5;color:#166534 }
+.cash-box.warn { background: #fffbeb;color:#92400e }
+.cash-box.danger { background: #fff1f2;color:#9f1239 }
+
+/* responsive */
+@media (max-width:980px){
+  .container{grid-template-columns:1fr; padding:0 12px}
+}
+
+.logo img {
+  width: 60px; 
+  height: auto;
+}
+
+
+/* === 2 Kolom Produk === */
+#productGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+#productGrid .product {
+  width: 100%;
+}
+
+
+/* Tombol minus jadi merah gelap */
+button[data-op="dec"] {
+  background: #7a0000 !important; /* merah gelap */
+  color: #fff !important;
+  border: none !important;
+}
+
+button[data-op="dec"]:active {
+  background: #5a0000 !important; /* lebih gelap saat ditekan */
+}
+
+

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>WMB SHOP — User</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+<div class="logo">
+  <img src="img/logo.png" alt="Logo">
+</div>
+      <div>
+        <h1>WMB SHOP</h1>
+        <small>PREMIUM • Cafe Modern</small>
+      </div>
+    </div>
+    <div id="clock" class="clock">--:--:--</div>
+  </header>
+
+  <main class="container">
+    <section class="catalog card">
+      <h2>Produk</h2>
+      <div id="productGrid" class="product-grid"></div>
+    </section>
+
+    <aside class="sidebar">
+      <div class="cart card">
+        <h3>Troli</h3>
+        <div id="cartList" class="cart-list"><div class="muted">Troli kosong</div></div>
+
+        <div class="totals">
+          <div>Total</div>
+          <div id="totalAmount" class="amount">Rp0</div>
+        </div>
+
+        <div class="actions">
+          <button id="resetCart" class="btn ghost">Reset Troli</button>
+          <div style="display:flex;gap:8px">
+            <button id="payQrBtn" class="btn primary">Bayar via QRIS</button>
+            <button id="payCashBtn" class="btn accent">Bayar Cash</button>
+          </div>
+        </div>
+
+        <div id="qrBox" class="qr-box hidden">
+          <div class="small">QRIS untuk dibayar</div>
+          <div id="qrImage" class="qr-image"></div>
+          <div id="qrInfo" class="small muted"></div>
+          <div style="margin-top:10px;display:flex;gap:8px;justify-content:center">
+            <button id="downloadQR" class="btn ghost">Download QR</button>
+            <button id="hideQR" class="btn ghost">Sembunyikan</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="card history" style="margin-top:12px">
+        <h4>Riwayat Terakhir</h4>
+        <div id="historyList" class="hist-list"><div class="muted">Belum ada riwayat</div></div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Firebase SDK (compat) -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+  <script src="firebase.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
