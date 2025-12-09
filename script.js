@@ -1,4 +1,4 @@
-// script.js (user page) — final (proxy QRIS integrated)
+// script.js (user page) — FINAL EMV-ONLY (no external QR API dependency)
 // Products (fixed)
 const PRODUCTS = [
   { id:'yklt_ori', name:'Yakult Original', pack:10000, pallet:100000, img:'img/yklt-ori.png' },
@@ -7,20 +7,19 @@ const PRODUCTS = [
   { id:'open_Donasi', name:'Open Donasi', pack:1000, pallet:1000, img:'img/open-Donasu.png' }
 ];
 
-// QRIS static string
+// QRIS static string (statis; EMV akan dibangun ulang dengan amount)
 const QRIS_STATIS = "00020101021126570011ID.DANA.WWW011893600915380003780002098000378000303UMI51440014ID.CO.QRIS.WWW0215ID10243620012490303UMI5204549953033605802ID5910Warr2 Shop6015Kab. Bandung Ba6105402936304BF4C";
 
 let CART = {};
 let lastTx = null;
 
+/* ---------------- UI: products & cart ---------------- */
 function renderProducts(){
   const grid = document.getElementById('productGrid');
   if(!grid) return;
   grid.innerHTML = '';
   PRODUCTS.forEach(p=>{
-    const node = document.createElement('div'); 
-    node.className='product';
-
+    const node = document.createElement('div'); node.className='product';
     node.innerHTML = `
       <img src="${p.img}" alt="${p.name}">
       <h3>${p.name}</h3>
@@ -87,21 +86,29 @@ if(hideQRBtn) hideQRBtn.addEventListener('click', ()=> {
   const box = document.getElementById('qrBox'); if(box) box.classList.add('hidden');
 });
 
-/* helper: convert image URL -> base64 (returns base64 string without data: prefix) */
+/* ---------------- helper: convert image URL -> base64 (returns base64 string without data: prefix) ---------------- */
 async function urlToBase64(url){
-  const res = await fetch(url);
-  const blob = await res.blob();
-  return await new Promise((resolve, reject)=>{
-    const fr = new FileReader();
-    fr.onloadend = ()=> {
-      const dataUrl = fr.result; // "data:image/png;base64,....."
-      resolve(dataUrl.split(',')[1]);
-    };
-    fr.onerror = reject;
-    fr.readAsDataURL(blob);
-  });
+  // Try to fetch image and convert to base64. If it fails due to CORS, the caller should fallback to using qris_url only.
+  try {
+    const res = await fetch(url);
+    if(!res.ok) throw new Error('fetch failed');
+    const blob = await res.blob();
+    return await new Promise((resolve, reject)=>{
+      const fr = new FileReader();
+      fr.onloadend = ()=> {
+        const dataUrl = fr.result; // "data:image/png;base64,....."
+        resolve(dataUrl.split(',')[1]);
+      };
+      fr.onerror = reject;
+      fr.readAsDataURL(blob);
+    });
+  } catch(e){
+    // rethrow so caller can decide fallback
+    throw e;
+  }
 }
 
+/* ---------------- startOrder: EMV-only workflow ---------------- */
 async function startOrder(method){
   const keys = Object.keys(CART).filter(k=>CART[k]>0);
   if(keys.length===0){ alert('Troli kosong'); return; }
@@ -125,89 +132,57 @@ async function startOrder(method){
 
   try {
     // save minimal order first so admin sees pending
-    await DB.ref('orders/'+txid).set(orderTemplate);
+    if(typeof DB !== 'undefined' && DB.ref) await DB.ref('orders/'+txid).set(orderTemplate);
 
-    // If method is QRIS -> try generate QR (API first, local fallback)
     if(method === 'qris'){
+      // Build EMV final with amount (this ensures QRIS is valid for scanners)
+      const emv = buildEmvWithAmount(QRIS_STATIS, String(total));
+
+      // Use QR Server (no proxy) to render EMV into image
+      const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(emv)}`;
+
+      // Try to fetch the QR image and convert to base64 for stable display & download
       try {
-        const api = await callQrisApiWithTimeout(String(total), QRIS_STATIS, 8000);
-        if(api && api.status === 'success' && api.qris_base64){
-          // API returned base64
-          await DB.ref('orders/'+txid).update({ qris_base64: api.qris_base64, via:'api' });
-          if(qrImage) qrImage.innerHTML = `<img src="data:image/png;base64,${api.qris_base64}" alt="QR">`;
-          if(document.getElementById('qrInfo')) document.getElementById('qrInfo').textContent = `Kode: ${txid}`;
-          if(document.getElementById('downloadQR')) document.getElementById('downloadQR').onclick = ()=> {
-            const a = document.createElement('a'); a.href = 'data:image/png;base64,'+api.qris_base64; a.download = txid+'.png'; a.click();
-          };
-        } else {
-          throw new Error(api?.message || 'API invalid');
+        const base64 = await urlToBase64(qrUrl);
+
+        // save to DB (so admin can later display)
+        if(typeof DB !== 'undefined' && DB.ref) {
+          await DB.ref('orders/'+txid).update({ emv_string: emv, qris_url: qrUrl, qris_base64: base64, via:'emv-qrserver' });
         }
-      } catch(eapi){
-        // FALLBACK (PROXY) — build emv string + use Google chart URL via proxy -> convert to base64 -> save into DB as qris_base64
-        const emv = buildEmvWithAmount(QRIS_STATIS, String(total));
-        const googleURL = makeGoogleChartQrUrl(emv, 360);
 
-        // PROXY supaya tidak diblokir oleh Vercel (AllOrigins raw)
-        const proxyURL = "https://api.allorigins.win/raw?url=" + encodeURIComponent(googleURL);
+        if(qrImage) qrImage.innerHTML = `<img src="data:image/png;base64,${base64}" alt="QR">`;
+        if(document.getElementById('qrInfo')) document.getElementById('qrInfo').textContent = `Kode: ${txid}`;
 
-        try {
-          const res = await fetch(proxyURL);
-          const blob = await res.blob();
-          const reader = new FileReader();
+        if(document.getElementById('downloadQR')) document.getElementById('downloadQR').onclick = ()=>{
+          const a = document.createElement('a');
+          a.href = "data:image/png;base64," + base64;
+          a.download = txid + ".png";
+          a.click();
+        };
+      } catch(fetchErr){
+        // If converting to base64 fails (possible CORS), still show remote image and save qris_url
+        if(typeof DB !== 'undefined' && DB.ref) {
+          await DB.ref('orders/'+txid).update({ emv_string: emv, qris_url: qrUrl, via:'emv-qrserver-url' });
+        }
+        if(qrImage) qrImage.innerHTML = `<img src="${qrUrl}" alt="QR">`;
+        if(document.getElementById('qrInfo')) document.getElementById('qrInfo').textContent = `Kode: ${txid} (gunakan fitur download jika tersedia)`;
 
-          const b64 = await new Promise((resolve, reject) => {
-            reader.onerror = reject;
-            reader.onloadend = () => {
-              const result = reader.result || '';
-              const parts = String(result).split(',');
-              resolve(parts[1] || '');
-            };
-            reader.readAsDataURL(blob);
-          });
-
-          // Simpan base64 ke Firebase
-          await DB.ref('orders/'+txid).update({
-            emv_string: emv,
-            qris_base64: b64,
-            via: 'local-proxy'
-          });
-
-          // Tampilkan QR
-          if(qrImage) qrImage.innerHTML = `<img src="data:image/png;base64,${b64}" alt="QR">`;
-          if(document.getElementById('qrInfo')) document.getElementById('qrInfo').textContent = `Kode: ${txid} (fallback)`;
-
-          // Download
-          if(document.getElementById('downloadQR')) document.getElementById('downloadQR').onclick = ()=> {
+        // Download fallback: try fetch blob and download (may fail due to CORS)
+        if(document.getElementById('downloadQR')) document.getElementById('downloadQR').onclick = ()=> {
+          fetch(qrUrl).then(r=>r.blob()).then(blob=>{
             const a = document.createElement('a');
-            a.href = "data:image/png;base64," + b64;
-            a.download = txid + ".png";
+            a.href = URL.createObjectURL(blob);
+            a.download = txid + '.png';
             a.click();
-          };
-
-        } catch(fetchErr){
-          // Last-resort fallback: store url and show remote google url (may be blocked)
-          await DB.ref('orders/'+txid).update({
-            emv_string: emv,
-            qris_url: googleURL,
-            via: 'local-url'
-          });
-
-          if(qrImage) qrImage.innerHTML = `<img src="${googleURL}" alt="QR">`;
-          if(document.getElementById('qrInfo')) document.getElementById('qrInfo').textContent = `Kode: ${txid} (fallback direct)`;
-
-          if(document.getElementById('downloadQR')) document.getElementById('downloadQR').onclick = ()=> {
-            fetch(googleURL).then(r=>r.blob()).then(blob=>{
-              const a = document.createElement('a');
-              a.href = URL.createObjectURL(blob);
-              a.download = txid + '.png';
-              a.click();
-            }).catch(()=> alert('Download gagal'));
-          };
-        }
+          }).catch(()=> alert('Download gagal (CORS) — silakan screenshot'));
+        };
       }
     } else {
-      // method == 'cash' -> no QR generated; inform user to pay cash to admin
+      // Cash flow
       if(document.getElementById('qrImage')) document.getElementById('qrImage').innerHTML = `<div class="small muted">Transaksi cash dicatat. Bayar tunai ke admin.</div>`;
+      if(typeof DB !== 'undefined' && DB.ref) {
+        await DB.ref('orders/'+txid).update({ via:'cash' });
+      }
       if(document.getElementById('qrInfo')) document.getElementById('qrInfo').textContent = `Kode: ${txid} (CASH)`;
     }
 
@@ -216,18 +191,20 @@ async function startOrder(method){
     alert('Order dibuat. Kode: ' + txid + '. Tunggu proses di admin.');
 
     // Listen for status changes for this tx (the user will be notified when admin updates)
-    DB.ref('orders/'+txid+'/status').on('value', snap=>{
-      const s = snap.val();
-      if(s === 'paid'){
-        if(qrBox) qrBox.classList.add('hidden');
-        alert('Pembayaran terkonfirmasi. Terima kasih!');
-      } else if(s === 'cancelled'){
-        if(qrBox) qrBox.classList.add('hidden');
-        alert('Transaksi dibatalkan oleh admin.');
-      } else {
-        // still pending
-      }
-    });
+    if(typeof DB !== 'undefined' && DB.ref) {
+      DB.ref('orders/'+txid+'/status').on('value', snap=>{
+        const s = snap.val();
+        if(s === 'paid'){
+          if(qrBox) qrBox.classList.add('hidden');
+          alert('Pembayaran terkonfirmasi. Terima kasih!');
+        } else if(s === 'cancelled'){
+          if(qrBox) qrBox.classList.add('hidden');
+          alert('Transaksi dibatalkan oleh admin.');
+        } else {
+          // still pending
+        }
+      });
+    }
 
   } catch(err){
     console.error(err);
@@ -237,27 +214,9 @@ async function startOrder(method){
   }
 }
 
-/* ---------------- API with timeout + fallback helpers (same as previous) ---------------- */
-async function callQrisApiWithTimeout(amount, qrisStatis, timeoutMs = 8000){
-  const controller = new AbortController();
-  const id = setTimeout(()=> controller.abort(), timeoutMs);
-  try {
-    const res = await fetch('https://qrisku.my.id/api', {
-      method:'POST',
-      headers:{ 'Content-Type':'application/json' },
-      body: JSON.stringify({ amount, qris_statis: qrisStatis }),
-      signal: controller.signal
-    });
-    clearTimeout(id);
-    const j = await res.json();
-    return j;
-  } catch(err){
-    clearTimeout(id);
-    throw err;
-  }
-}
-
+/* ---------------- utilities & EMV helpers ---------------- */
 function buildEmvWithAmount(qrisStatis, amountStr){
+  // Adds tag 54 (amount) and recalculates CRC (6304)
   const upper = qrisStatis.toUpperCase();
   const crcIndex = upper.indexOf('6304');
   if(crcIndex === -1) throw new Error('QRIS statis tidak memiliki tag CRC (6304)');
@@ -270,6 +229,7 @@ function buildEmvWithAmount(qrisStatis, amountStr){
   const emvFull = emvNoCrc + crc;
   return emvFull;
 }
+
 function crc16ccitt(inputStr){
   const poly = 0x1021;
   let crc = 0xFFFF;
@@ -283,12 +243,13 @@ function crc16ccitt(inputStr){
   }
   return crc.toString(16).padStart(4,'0');
 }
+
 function makeGoogleChartQrUrl(dataStr, size=300){
   const encoded = encodeURIComponent(dataStr);
   return `https://chart.googleapis.com/chart?cht=qr&chs=${size}x${size}&chl=${encoded}&chld=L|1`;
 }
 
-/* ---------------- utilities ---------------- */
+/* ---------------- utilities general ---------------- */
 function createTxId(){
   const d = new Date();
   return 'YKLT' + d.getFullYear() + pad2(d.getMonth()+1) + pad2(d.getDate()) + pad2(d.getHours()) + pad2(d.getMinutes()) + pad2(d.getSeconds());
